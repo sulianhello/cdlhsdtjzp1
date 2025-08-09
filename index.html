@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>商场品牌招聘信息</title>
+    <!-- 替换为生产环境Tailwind CSS（解决警告问题） -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- XLSX解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af',
+                        secondary: '#64748b',
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .job-card {
+                @apply bg-white rounded-lg shadow-sm overflow-hidden mb-4 border border-gray-100 transition-all duration-200 hover:shadow-md;
+            }
+            .card-header {
+                @apply bg-primary/5 px-5 py-3 border-b border-gray-100;
+            }
+            .info-group {
+                @apply grid grid-cols-2 gap-x-4 gap-y-3;
+            }
+            .pagination-btn {
+                @apply px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 text-sm hover:bg-primary hover:text-white hover:border-primary transition-colors;
+            }
+            .pagination-btn.active {
+                @apply bg-primary text-white border-primary;
+            }
+            .upload-area {
+                @apply fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden;
+            }
+            .upload-panel {
+                @apply bg-white rounded-lg w-full max-w-md p-6 shadow-xl;
+            }
+            /* 确保上传触发按钮可点击 */
+            .trigger-upload {
+                @apply fixed top-20 right-4 p-3 text-gray-400 hover:text-primary cursor-pointer z-20 bg-white/80 rounded-full shadow-md transition-all;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- 顶部导航 -->
+    <header class="bg-primary text-white shadow-md sticky top-0 z-10">
+        <div class="container mx-auto px-5 py-4">
+            <h1 class="text-xl font-bold text-center">商场品牌招聘信息</h1>
+            <p class="text-center text-blue-100 text-xs mt-1">
+                本地Excel上传 · 数据持久化
+            </p>
+        </div>
+    </header>
+
+    <!-- 触发上传区域的按钮（点击3次显示） -->
+    <div id="trigger-upload" class="trigger-upload">
+        <i class="fa fa-upload"></i>
+    </div>
+
+    <!-- 上传区域（默认隐藏） -->
+    <div id="upload-modal" class="upload-area">
+        <div class="upload-panel">
+            <h3 class="text-lg font-bold text-primary mb-4 flex items-center">
+                <i class="fa fa-file-excel-o mr-2"></i> 上传招聘信息Excel
+            </h3>
+            
+            <!-- 密码验证 -->
+            <div id="password-check">
+                <p class="text-sm text-gray-600 mb-2">请输入管理员密码：</p>
+                <input type="password" id="admin-password" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded mb-3 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="输入密码">
+                <button id="verify-password" 
+                    class="w-full bg-primary text-white py-2 rounded hover:bg-primary/90">
+                    验证并上传
+                </button>
+            </div>
+            
+            <!-- 文件上传区域 -->
+            <div id="file-upload-area" class="hidden">
+                <p class="text-sm text-gray-500 mb-3">请上传XLSX格式文件（列顺序需与模板一致）</p>
+                <label class="border-2 border-dashed border-gray-300 rounded p-4 text-center cursor-pointer hover:border-primary transition-colors">
+                    <input type="file" id="file-input" accept=".xlsx" class="hidden">
+                    <i class="fa fa-cloud-upload text-2xl text-gray-400 mb-2"></i>
+                    <p class="text-sm text-gray-600">点击或拖拽文件到此处上传</p>
+                </label>
+                <div id="upload-status" class="mt-3 text-sm hidden"></div>
+                <button id="close-upload" class="mt-4 w-full bg-gray-100 text-gray-700 py-2 rounded hover:bg-gray-200">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主要内容区 -->
+    <main class="container mx-auto px-4 py-5">
+        <!-- 统计信息条 -->
+        <div class="bg-white rounded-lg shadow-sm p-3 mb-5 border border-gray-100">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <i class="fa fa-briefcase text-primary mr-1"></i>
+                    共 <span id="total-jobs" class="font-medium text-primary">0</span> 个有效岗位
+                </div>
+                <div class="text-sm text-gray-500" id="update-time"></div>
+            </div>
+        </div>
+
+        <!-- 招聘信息容器 -->
+        <div id="jobs-container">
+            <div class="text-center py-10 text-gray-500">
+                <i class="fa fa-info-circle mr-2"></i> 请上传Excel文件查看招聘信息
+            </div>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="flex justify-center items-center mt-6 mb-4 gap-1 flex-wrap" id="pagination" style="display: none;">
+            <button id="prev-page" class="pagination-btn" disabled>
+                <i class="fa fa-angle-left"></i> 上一页
+            </button>
+            <div id="page-numbers" class="flex gap-1"></div>
+            <button id="next-page" class="pagination-btn">
+                下一页 <i class="fa fa-angle-right"></i>
+            </button>
+        </div>
+    </main>
+
+    <script>
+        // 配置
+        const PAGE_SIZE = 8;
+        let currentPage = 1;
+        let totalPages = 1;
+        let jobsData = [];
+        const ADMIN_PASSWORD = 'admin123'; // 管理员密码（可修改）
+        let clickCount = 0;
+        const STORAGE_KEY = 'recruitmentJobsData'; // 本地存储键名
+
+        // DOM元素
+        const jobsContainer = document.getElementById('jobs-container');
+        const totalJobsEl = document.getElementById('total-jobs');
+        const updateTimeEl = document.getElementById('update-time');
+        const paginationContainer = document.getElementById('pagination');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const pageNumbersContainer = document.getElementById('page-numbers');
+        const triggerUpload = document.getElementById('trigger-upload');
+        const uploadModal = document.getElementById('upload-modal');
+        const verifyPasswordBtn = document.getElementById('verify-password');
+        const adminPasswordInput = document.getElementById('admin-password');
+        const passwordCheck = document.getElementById('password-check');
+        const fileUploadArea = document.getElementById('file-upload-area');
+        const fileInput = document.getElementById('file-input');
+        const uploadStatus = document.getElementById('upload-status');
+        const closeUploadBtn = document.getElementById('close-upload');
+
+        // 初始化：从本地存储加载数据
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDataFromStorage();
+            bindEvents();
+        });
+
+        // 从本地存储加载数据
+        function loadDataFromStorage() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                jobsData = parsed.jobs;
+                updateTimeEl.textContent = `最后更新: ${parsed.updateTime}`;
+                updatePageData();
+            }
+        }
+
+        // 保存数据到本地存储
+        function saveDataToStorage() {
+            const data = {
+                jobs: jobsData,
+                updateTime: new Date().toLocaleString('zh-CN')
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // 绑定所有事件
+        function bindEvents() {
+            // 点击3次触发上传区域显示（修复无响应问题）
+            triggerUpload.addEventListener('click', (e) => {
+                e.stopPropagation(); // 防止事件冒泡
+                clickCount++;
+                if (clickCount >= 3) {
+                    uploadModal.classList.remove('hidden');
+                    clickCount = 0;
+                }
+            });
+
+            // 点击模态框外部关闭
+            uploadModal.addEventListener('click', (e) => {
+                if (e.target === uploadModal) {
+                    uploadModal.classList.add('hidden');
+                    resetUploadState();
+                }
+            });
+
+            // 密码验证
+            verifyPasswordBtn.addEventListener('click', () => {
+                if (adminPasswordInput.value === ADMIN_PASSWORD) {
+                    passwordCheck.classList.add('hidden');
+                    fileUploadArea.classList.remove('hidden');
+                    adminPasswordInput.value = ''; // 清空密码
+                } else {
+                    alert('密码错误，请重试');
+                }
+            });
+
+            // 关闭上传区域
+            closeUploadBtn.addEventListener('click', () => {
+                uploadModal.classList.add('hidden');
+                resetUploadState();
+            });
+
+            // 文件上传处理
+            fileInput.addEventListener('change', handleFileUpload);
+
+            // 分页事件
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                }
+            });
+
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                }
+            });
+
+            pageNumbersContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const page = parseInt(e.target.dataset.page);
+                    currentPage = page;
+                    displayPage(page);
+                    updatePaginationButtons();
+                }
+            });
+        }
+
+        // 重置上传状态
+        function resetUploadState() {
+            passwordCheck.classList.remove('hidden');
+            fileUploadArea.classList.add('hidden');
+            uploadStatus.classList.add('hidden');
+            adminPasswordInput.value = '';
+            fileInput.value = ''; // 清空文件选择
+        }
+
+        // 处理文件上传
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.name.split('.').pop() !== 'xlsx') {
+                showUploadStatus('请上传XLSX格式的Excel文件', 'red');
+                return;
+            }
+
+            showUploadStatus('正在解析文件...', 'blue');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    // 新上传文件会覆盖旧数据
+                    jobsData = parseExcelData(jsonData);
+                    
+                    if (jobsData.length > 0) {
+                        // 保存到本地存储
+                        saveDataToStorage();
+                        showUploadStatus('上传成功！正在显示数据...', 'green');
+                        setTimeout(() => {
+                            uploadModal.classList.add('hidden');
+                            resetUploadState();
+                            updatePageData();
+                        }, 1000);
+                    } else {
+                        showUploadStatus('未找到有效数据，请检查文件格式', 'red');
+                    }
+                } catch (error) {
+                    console.error('解析文件出错:', error);
+                    showUploadStatus('文件解析失败，请检查文件是否损坏', 'red');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 解析Excel数据
+        function parseExcelData(jsonData) {
+            const jobs = [];
+            for (let i = 1; i < jsonData.length; i++) { // 跳过表头行
+                const row = jsonData[i];
+                if (!row || row.length < 10) continue;
+                
+                if (row[9] === '通过') { // 审核通过的岗位
+                    jobs.push({
+                        brand: row[0] || '未填写',
+                        position: row[1] || '未填写',
+                        responsibilities: row[2] || '无',
+                        requirements: row[3] || '无',
+                        salary: row[4] || '未填写',
+                        location: row[5] || '未填写',
+                        contactPerson: row[6] || '未填写',
+                        contactPhone: row[7] || '未填写',
+                        expiryDate: row[8] || '未填写',
+                    });
+                }
+            }
+            return jobs;
+        }
+
+        // 更新页面数据
+        function updatePageData() {
+            totalJobsEl.textContent = jobsData.length;
+            totalPages = Math.ceil(jobsData.length / PAGE_SIZE);
+            currentPage = 1;
+            initPagination();
+            displayPage(currentPage);
+            paginationContainer.style.display = jobsData.length > 0 ? 'flex' : 'none';
+        }
+
+        // 显示上传状态
+        function showUploadStatus(text, color) {
+            uploadStatus.textContent = text;
+            uploadStatus.className = `mt-3 text-sm ${
+                color === 'red' ? 'text-red-500' : 
+                color === 'green' ? 'text-green-500' : 'text-blue-500'
+            }`;
+            uploadStatus.classList.remove('hidden');
+        }
+
+        // 分页相关函数
+        function initPagination() {
+            pageNumbersContainer.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+                btn.textContent = i;
+                btn.dataset.page = i;
+                pageNumbersContainer.appendChild(btn);
+            }
+            updatePaginationButtons();
+        }
+
+        function updatePaginationButtons() {
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+            document.querySelectorAll('#page-numbers button').forEach(btn => {
+                const page = parseInt(btn.dataset.page);
+                btn.classList.toggle('active', page === currentPage);
+            });
+        }
+
+        function displayPage(page) {
+            jobsContainer.innerHTML = '';
+            
+            if (jobsData.length === 0) {
+                jobsContainer.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <i class="fa fa-info-circle mr-2"></i> 暂无有效招聘信息
+                    </div>
+                `;
+                return;
+            }
+            
+            const startIndex = (page - 1) * PAGE_SIZE;
+            const endIndex = Math.min(startIndex + PAGE_SIZE, jobsData.length);
+            jobsData.slice(startIndex, endIndex).forEach(job => {
+                jobsContainer.appendChild(createJobElement(job));
+            });
+        }
+
+        function createJobElement(job) {
+            const div = document.createElement('div');
+            div.className = 'job-card';
+            
+            const responsibilitiesList = job.responsibilities
+                .split(/[；;]/)
+                .filter(item => item.trim() !== '')
+                .map(item => `<li class="text-sm text-gray-700 mb-1">${item}</li>`)
+                .join('');
+
+            const requirementsList = job.requirements
+                .split(/[；;]/)
+                .filter(item => item.trim() !== '')
+                .map(item => `<li class="text-sm text-gray-700 mb-1">${item}</li>`)
+                .join('');
+
+            div.innerHTML = `
+                <div class="card-header">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-primary font-bold">${job.brand}</h3>
+                            <p class="text-gray-800 mt-0.5">${job.position}</p>
+                        </div>
+                        <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
+                            正在招聘
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="px-5 py-4">
+                    <div class="info-group mb-4">
+                        <div class="flex items-center">
+                            <i class="fa fa-money text-primary mr-2"></i>
+                            <span class="text-sm font-medium">${job.salary}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fa fa-map-marker text-primary mr-2"></i>
+                            <span class="text-sm">${job.location}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fa fa-user text-primary mr-2"></i>
+                            <span class="text-sm">${job.contactPerson}</span>
+                        </div>
+                        <div class="flex items-center">
+                            <i class="fa fa-phone text-primary mr-2"></i>
+                            <span class="text-sm">${job.contactPhone}</span>
+                        </div>
+                        <div class="flex items-center col-span-2">
+                            <i class="fa fa-calendar text-primary mr-2"></i>
+                            <span class="text-sm">有效期至: ${job.expiryDate}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">岗位职责</h4>
+                        <ul class="list-disc pl-5">${responsibilitiesList || '<li class="text-sm text-gray-500">暂无信息</li>'}</ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">岗位要求</h4>
+                        <ul class="list-disc pl-5">${requirementsList || '<li class="text-sm text-gray-500">暂无信息</li>'}</ul>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+    </script>
+</body>
+</html>
