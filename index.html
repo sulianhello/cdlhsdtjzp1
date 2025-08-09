@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>商场品牌招聘信息</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af',
+                        secondary: '#64748b',
+                        neutral: '#f1f5f9',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .job-card {
+                @apply bg-white rounded-lg shadow-sm overflow-hidden mb-4 border border-gray-100 transition-all duration-200 hover:shadow-md;
+            }
+            .card-header {
+                @apply bg-primary/5 px-5 py-3 border-b border-gray-100;
+            }
+            .info-group {
+                @apply grid grid-cols-2 gap-x-4 gap-y-3;
+            }
+            .info-item {
+                @apply flex items-center;
+            }
+            .info-icon {
+                @apply w-4 text-primary mr-2 flex-shrink-0;
+            }
+            .info-text {
+                @apply text-sm;
+            }
+            .section-title {
+                @apply text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2;
+            }
+            .pagination-btn {
+                @apply px-3 py-1.5 rounded border border-gray-200 bg-white text-gray-700 text-sm hover:bg-primary hover:text-white hover:border-primary transition-colors;
+            }
+            .pagination-btn.active {
+                @apply bg-primary text-white border-primary;
+            }
+            .pagination-btn:disabled {
+                @apply opacity-50 cursor-not-allowed hover:bg-white hover:text-gray-700 hover:border-gray-200;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800">
+    <!-- 顶部导航 -->
+    <header class="bg-primary text-white shadow-md sticky top-0 z-10">
+        <div class="container mx-auto px-5 py-4">
+            <h1 class="text-xl font-bold text-center">商场品牌招聘信息</h1>
+            <p class="text-center text-blue-100 text-xs mt-1">
+                实时更新 · 官方发布
+            </p>
+        </div>
+    </header>
+
+    <!-- 主要内容区 -->
+    <main class="container mx-auto px-4 py-5">
+        <!-- 统计信息条 -->
+        <div class="bg-white rounded-lg shadow-sm p-3 mb-5 border border-gray-100">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-600">
+                    <i class="fa fa-briefcase text-primary mr-1"></i>
+                    共 <span id="total-jobs" class="font-medium text-primary"></span> 个有效岗位
+                </div>
+                <div class="text-sm text-gray-500" id="update-time"></div>
+            </div>
+        </div>
+
+        <!-- 招聘信息容器 -->
+        <div id="jobs-container">
+            <!-- 招聘信息将通过JavaScript动态生成 -->
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="flex justify-center items-center mt-6 mb-4 gap-1 flex-wrap" id="pagination">
+            <button id="prev-page" class="pagination-btn" disabled>
+                <i class="fa fa-angle-left"></i> 上一页
+            </button>
+            <div id="page-numbers" class="flex gap-1"></div>
+            <button id="next-page" class="pagination-btn">
+                下一页 <i class="fa fa-angle-right"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-500 text-xs">© 2023 商场管理中心 | 本招聘信息由各品牌商铺提供</p>
+        </div>
+    </footer>
+
+    <script>
+        // 10条包含岗位要求的模拟招聘数据
+        const jobsData = [
+            {
+                brand: "星巴克咖啡",
+                position: "全职咖啡师",
+                responsibilities: "1. 按照标准流程制作咖啡及其他饮品；2. 为顾客提供优质服务并解答疑问；3. 保持工作区域清洁卫生；4. 协助进行库存盘点和物料管理。",
+                requirements: "1. 18-30周岁，身体健康；2. 有相关工作经验者优先；3. 具备良好的沟通能力和服务意识；4. 能够适应轮班工作。",
+                salary: "4500-6000元/月",
+                location: "商场1楼东侧",
+                contactPerson: "李经理",
+                contactPhone: "138****5678",
+                expiryDate: "2023-12-31",
+                auditStatus: "通过",
+                submitTime: "2023-10-15"
+            },
+            {
+                brand: "优衣库",
+                position: "兼职店员",
+                responsibilities: "1. 负责商品整理、陈列和补货；2. 协助顾客挑选商品并提供咨询；3. 保持店铺整洁有序；4. 协助完成促销活动。",
+                requirements: "1. 18周岁以上，时间灵活；2. 热爱零售行业，有服务意识；3. 工作认真负责，积极主动；4. 学生优先。",
+                salary: "18-22元/小时",
+                location: "商场2楼北侧",
+                contactPerson: "张主管",
+                contactPhone: "139****1234",
+                expiryDate: "2023-11-30",
+                auditStatus: "通过",
+                submitTime: "2023-10-10"
+            },
+            {
+                brand: "丝芙兰",
+                position: "美妆顾问",
+                responsibilities: "1. 为顾客提供专业的美妆建议和产品推荐；2. 演示产品使用方法；3. 完成个人销售指标；4. 维护产品陈列和库存。",
+                requirements: "1. 20-35周岁，形象气质佳；2. 有美妆行业经验者优先；3. 具备良好的沟通能力和销售技巧；4. 了解美妆产品知识。",
+                salary: "5000-8000元/月（底薪+提成）",
+                location: "商场1楼中央",
+                contactPerson: "王经理",
+                contactPhone: "137****8901",
+                expiryDate: "2023-12-15",
+                auditStatus: "通过",
+                submitTime: "2023-10-08"
+            },
+            {
+                brand: "海底捞",
+                position: "餐厅服务员",
+                responsibilities: "1. 为顾客提供热情周到的用餐服务；2. 准确记录顾客订单并传达给后厨；3. 保持餐桌及周边环境整洁；4. 协助处理顾客需求和疑问。",
+                requirements: "1. 18-40周岁，身体健康；2. 有餐饮服务经验者优先；3. 吃苦耐劳，有团队合作精神；4. 能够适应快节奏工作。",
+                salary: "4800-6500元/月",
+                location: "商场3楼西侧",
+                contactPerson: "陈店长",
+                contactPhone: "135****6789",
+                expiryDate: "2024-01-20",
+                auditStatus: "通过",
+                submitTime: "2023-10-05"
+            },
+            {
+                brand: "华为体验店",
+                position: "销售顾问",
+                responsibilities: "1. 向顾客介绍华为产品特点及优势；2. 完成销售任务并达成业绩指标；3. 建立和维护客户关系；4. 协助开展店内促销活动。",
+                requirements: "1. 18-35周岁，形象良好；2. 有电子产品销售经验者优先；3. 具备良好的沟通能力和销售技巧；4. 了解智能手机及数码产品。",
+                salary: "5000-12000元/月（底薪+提成）",
+                location: "商场1楼西侧",
+                contactPerson: "刘经理",
+                contactPhone: "136****2345",
+                expiryDate: "2024-01-10",
+                auditStatus: "通过",
+                submitTime: "2023-10-01"
+            },
+            {
+                brand: "卡通尼乐园",
+                position: "乐园辅导员",
+                responsibilities: "1. 负责儿童游乐区的安全管理；2. 组织简单的互动游戏和活动；3. 维护乐园环境卫生；4. 解答家长咨询并提供帮助。",
+                requirements: "1. 18-30周岁，女性优先；2. 喜欢孩子，有耐心和爱心；3. 具备良好的沟通能力；4. 有幼教经验者优先。",
+                salary: "3800-4500元/月",
+                location: "商场5楼南侧",
+                contactPerson: "孙主管",
+                contactPhone: "133****7890",
+                expiryDate: "2023-12-20",
+                auditStatus: "通过",
+                submitTime: "2023-09-28"
+            },
+            {
+                brand: "屈臣氏",
+                position: "收银员",
+                responsibilities: "1. 负责日常收银工作，准确操作收银系统；2. 为顾客提供咨询服务；3. 保管好收银设备及款项；4. 协助整理商品和货架。",
+                requirements: "1. 18周岁以上，形象良好；2. 熟悉收银系统操作者优先；3. 工作细心，有责任心；4. 具备基本的数学计算能力。",
+                salary: "3500-4200元/月",
+                location: "商场2楼东侧",
+                contactPerson: "赵经理",
+                contactPhone: "134****3456",
+                expiryDate: "2023-11-25",
+                auditStatus: "通过",
+                submitTime: "2023-09-25"
+            },
+            {
+                brand: "耐克",
+                position: "导购员",
+                responsibilities: "1. 接待顾客并提供专业的产品介绍；2. 协助顾客挑选合适的运动装备；3. 维护店铺陈列和整洁；4. 完成个人销售目标。",
+                requirements: "1. 18-35周岁，热爱运动；2. 有 retail 销售经验者优先；3. 具备良好的沟通表达能力；4. 能够承受销售压力。",
+                salary: "4000-7000元/月（底薪+提成）",
+                location: "商场4楼北侧",
+                contactPerson: "郑主管",
+                contactPhone: "131****8901",
+                expiryDate: "2023-12-10",
+                auditStatus: "通过",
+                submitTime: "2023-09-20"
+            },
+            {
+                brand: "麦当劳",
+                position: "餐厅员工",
+                responsibilities: "1. 负责顾客点餐和取餐服务；2. 制作简单的食品和饮品；3. 保持工作区域清洁；4. 遵守食品安全规范。",
+                requirements: "1. 18周岁以上，身体健康；2. 时间灵活，能适应轮班；3. 工作认真负责，有服务意识；4. 学生可兼职。",
+                salary: "17-20元/小时",
+                location: "商场1楼南门",
+                contactPerson: "吴经理",
+                contactPhone: "132****4567",
+                expiryDate: "2023-11-15",
+                auditStatus: "通过",
+                submitTime: "2023-09-18"
+            },
+            {
+                brand: "西西弗书店",
+                position: "店员",
+                responsibilities: "1. 负责图书整理、上架和导购；2. 维护书店环境整洁；3. 协助举办店内文化活动；4. 完成图书销售任务。",
+                requirements: "1. 18-35周岁，热爱阅读；2. 有图书销售或相关经验者优先；3. 具备良好的沟通能力；4. 工作细心负责。",
+                salary: "3800-4500元/月",
+                location: "商场3楼东侧",
+                contactPerson: "林店长",
+                contactPhone: "130****9012",
+                expiryDate: "2023-12-05",
+                auditStatus: "通过",
+                submitTime: "2023-09-15"
+            }
+        ];
+
+        // 分页配置
+        const PAGE_SIZE = 8; // 每页显示8条
+        let currentPage = 1;
+        let totalPages = 1;
+
+        // DOM元素
+        const jobsContainer = document.getElementById('jobs-container');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const pageNumbersContainer = document.getElementById('page-numbers');
+        const totalJobsEl = document.getElementById('total-jobs');
+        const updateTimeEl = document.getElementById('update-time');
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 显示总岗位数
+            totalJobsEl.textContent = jobsData.length;
+            
+            // 显示更新时间
+            const now = new Date();
+            updateTimeEl.textContent = `更新于: ${now.toLocaleString('zh-CN')}`;
+            
+            // 计算总页数
+            totalPages = Math.ceil(jobsData.length / PAGE_SIZE);
+            
+            // 初始化分页
+            initPagination();
+            
+            // 显示第一页数据
+            displayPage(currentPage);
+            
+            // 绑定分页事件
+            bindPaginationEvents();
+        });
+
+        // 初始化分页控件
+        function initPagination() {
+            // 清空页码容器
+            pageNumbersContainer.innerHTML = '';
+            
+            // 创建页码按钮
+            for (let i = 1; i <= totalPages; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+                pageBtn.textContent = i;
+                pageBtn.dataset.page = i;
+                pageNumbersContainer.appendChild(pageBtn);
+            }
+            
+            // 更新分页按钮状态
+            updatePaginationButtons();
+        }
+
+        // 绑定分页事件
+        function bindPaginationEvents() {
+            // 上一页按钮
+            prevPageBtn.addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                    scrollToTop();
+                }
+            });
+            
+            // 下一页按钮
+            nextPageBtn.addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                    scrollToTop();
+                }
+            });
+            
+            // 页码按钮
+            pageNumbersContainer.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && e.target.dataset.page) {
+                    const page = parseInt(e.target.dataset.page);
+                    if (page !== currentPage) {
+                        currentPage = page;
+                        displayPage(currentPage);
+                        updatePaginationButtons();
+                        scrollToTop();
+                    }
+                }
+            });
+        }
+
+        // 更新分页按钮状态
+        function updatePaginationButtons() {
+            // 更新上一页/下一页按钮状态
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+            
+            // 更新页码按钮激活状态
+            document.querySelectorAll('#page-numbers button').forEach(btn => {
+                const page = parseInt(btn.dataset.page);
+                if (page === currentPage) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // 显示指定页的招聘信息
+        function displayPage(page) {
+            // 清空容器
+            jobsContainer.innerHTML = '';
+            
+            // 计算当前页数据的起始和结束索引
+            const startIndex = (page - 1) * PAGE_SIZE;
+            const endIndex = Math.min(startIndex + PAGE_SIZE, jobsData.length);
+            
+            // 获取当前页的数据
+            const currentPageData = jobsData.slice(startIndex, endIndex);
+            
+            // 显示当前页数据
+            currentPageData.forEach(job => {
+                const jobElement = createJobElement(job);
+                jobsContainer.appendChild(jobElement);
+            });
+        }
+
+        // 创建单个招聘信息元素
+        function createJobElement(job) {
+            const jobDiv = document.createElement('div');
+            jobDiv.className = 'job-card';
+
+            // 将岗位职责转换为列表形式
+            const responsibilitiesList = job.responsibilities
+                .split('；')
+                .filter(item => item.trim() !== '')
+                .map(item => `<li class="text-sm text-gray-700 mb-1">${item}</li>`)
+                .join('');
+
+            // 将岗位要求转换为列表形式
+            const requirementsList = job.requirements
+                .split('；')
+                .filter(item => item.trim() !== '')
+                .map(item => `<li class="text-sm text-gray-700 mb-1">${item}</li>`)
+                .join('');
+
+            jobDiv.innerHTML = `
+                <!-- 品牌和岗位标题 -->
+                <div class="card-header">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="text-primary font-bold">${job.brand}</h3>
+                            <p class="text-gray-800 mt-0.5">${job.position}</p>
+                        </div>
+                        <span class="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
+                            正在招聘
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 核心信息区 -->
+                <div class="px-5 py-4">
+                    <div class="info-group mb-4">
+                        <div class="info-item">
+                            <i class="fa fa-money info-icon"></i>
+                            <span class="info-text font-medium">${job.salary}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fa fa-map-marker info-icon"></i>
+                            <span class="info-text">${job.location}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fa fa-user info-icon"></i>
+                            <span class="info-text">${job.contactPerson}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="fa fa-phone info-icon"></i>
+                            <span class="info-text">${job.contactPhone}</span>
+                        </div>
+                        <div class="info-item col-span-2">
+                            <i class="fa fa-calendar info-icon"></i>
+                            <span class="info-text">有效期至: ${job.expiryDate}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 岗位职责区 -->
+                    <div class="mb-4">
+                        <h4 class="section-title">岗位职责</h4>
+                        <ul class="list-disc pl-5">${responsibilitiesList}</ul>
+                    </div>
+                    
+                    <!-- 岗位要求区 -->
+                    <div>
+                        <h4 class="section-title">岗位要求</h4>
+                        <ul class="list-disc pl-5">${requirementsList}</ul>
+                    </div>
+                </div>
+            `;
+
+            return jobDiv;
+        }
+
+        // 滚动到页面顶部
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+    </script>
+</body>
+</html>
+    
