@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>网站访问统计</title>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ua-parser-js@1.0.37/dist/ua-parser.min.js"></script>
+    <script>
+        // 全局配置
+        const SUPABASE_URL = "https://pbnbtuclityndulfsjhe.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBibmJ0dWNsaXR5bmR1bGZzamhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NjMwMTQsImV4cCI6MjA3MDMzOTAxNH0.EC6GFdIPaHdZQEflpQrHLP7vg39BsUYa4z8UAO21EKI";
+        
+        // 初始化Supabase客户端
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    </script>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        
+        /* 头部样式 */
+        header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .logo i {
+            font-size: 1.8rem;
+        }
+        
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .date-display {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        /* 主要内容区 */
+        main {
+            padding: 2rem 0;
+        }
+        
+        /* 统计卡片样式 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (min-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+        
+        .stat-card.total::before {
+            background-color: #3b82f6;
+        }
+        
+        .stat-card.month::before {
+            background-color: #10b981;
+        }
+        
+        .stat-card.week::before {
+            background-color: #f59e0b;
+        }
+        
+        .stat-card.devices::before {
+            background-color: #8b5cf6;
+        }
+        
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-title {
+            font-size: 0.95rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .stat-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .total .stat-icon {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #3b82f6;
+        }
+        
+        .month .stat-icon {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+        }
+        
+        .week .stat-icon {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+        }
+        
+        .devices .stat-icon {
+            background-color: rgba(139, 92, 246, 0.15);
+            color: #8b5cf6;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #1e293b;
+        }
+        
+        .stat-change {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+        
+        .increase {
+            color: #10b981;
+        }
+        
+        .decrease {
+            color: #ef4444;
+        }
+        
+        /* 图表区域 */
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (min-width: 768px) {
+            .charts-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #334155;
+        }
+        
+        .chart-period {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+        
+        .chart-wrapper {
+            width: 100%;
+            height: 300px;
+            position: relative;
+        }
+        
+        /* 设备分布表格 */
+        .devices-table {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 2rem;
+        }
+        
+        .table-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 1rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        th {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 600;
+        }
+        
+        td {
+            font-size: 0.9rem;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+        
+        .device-icon {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .device-icon i {
+            font-size: 1.2rem;
+            color: #64748b;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        /* 加载状态 */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 0;
+            color: #64748b;
+        }
+        
+        .loading i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #94a3b8;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        /* 错误状态 */
+        .error {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 0;
+            color: #dc2626;
+        }
+        
+        .error i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .error-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .error-message {
+            font-size: 0.9rem;
+            color: #b91c1c;
+            text-align: center;
+            max-width: 500px;
+        }
+        
+        .retry-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .retry-btn:hover {
+            background-color: #2563eb;
+        }
+        
+        /* 隐藏元素 */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <i class="fa fa-bar-chart"></i>
+                <h1>网站访问统计</h1>
+            </div>
+            <div class="date-display" id="currentDate"></div>
+        </div>
+    </header>
+    
+    <main class="container">
+        <!-- 加载状态 -->
+        <div class="loading" id="loadingState">
+            <i class="fa fa-circle-o-notch fa-spin"></i>
+            <div class="loading-text">正在加载统计数据...</div>
+        </div>
+        
+        <!-- 错误状态 -->
+        <div class="error hidden" id="errorState">
+            <i class="fa fa-exclamation-triangle"></i>
+            <div class="error-text">加载数据失败</div>
+            <div class="error-message" id="errorMessage">请稍后重试</div>
+            <button class="retry-btn" id="retryBtn">重试</button>
+        </div>
+        
+        <!-- 统计数据区域 -->
+        <div class="stats-content hidden" id="statsContent">
+            <!-- 统计卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card total">
+                    <div class="stat-header">
+                        <div class="stat-title">总访问次数</div>
+                        <div class="stat-icon">
+                            <i class="fa fa-globe"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="totalVisits">0</div>
+                    <div class="stat-change increase" id="totalChange">
+                        <i class="fa fa-arrow-up"></i>
+                        <span>较昨日 +0%</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card month">
+                    <div class="stat-header">
+                        <div class="stat-title">本月访问次数</div>
+                        <div class="stat-icon">
+                            <i class="fa fa-calendar"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="monthVisits">0</div>
+                    <div class="stat-change increase" id="monthChange">
+                        <i class="fa fa-arrow-up"></i>
+                        <span>较上月 +0%</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card week">
+                    <div class="stat-header">
+                        <div class="stat-title">本周访问次数</div>
+                        <div class="stat-icon">
+                            <i class="fa fa-calendar-check-o"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="weekVisits">0</div>
+                    <div class="stat-change increase" id="weekChange">
+                        <i class="fa fa-arrow-up"></i>
+                        <span>较上周 +0%</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card devices">
+                    <div class="stat-header">
+                        <div class="stat-title">独立设备数</div>
+                        <div class="stat-icon">
+                            <i class="fa fa-mobile"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="uniqueDevices">0</div>
+                    <div class="stat-change increase" id="devicesChange">
+                        <i class="fa fa-arrow-up"></i>
+                        <span>较昨日 +0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 图表区域 -->
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">每日访问趋势</div>
+                        <div class="chart-period" id="dailyTrendPeriod">最近30天</div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="dailyTrendChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">设备类型分布</div>
+                        <div class="chart-period">占比统计</div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="deviceTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 设备分布表格 -->
+            <div class="devices-table">
+                <div class="table-header">设备详细分布</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>设备类型</th>
+                            <th>数量</th>
+                            <th>占比</th>
+                        </tr>
+                    </thead>
+                    <tbody id="devicesTableBody">
+                        <!-- 设备数据将通过JS动态填充 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 全局变量
+        let deviceId = null;
+        let dailyTrendChart = null;
+        let deviceTypeChart = null;
+        
+        // DOM元素
+        const currentDateEl = document.getElementById('currentDate');
+        const loadingState = document.getElementById('loadingState');
+        const errorState = document.getElementById('errorState');
+        const statsContent = document.getElementById('statsContent');
+        const errorMessageEl = document.getElementById('errorMessage');
+        const retryBtn = document.getElementById('retryBtn');
+        
+        // 统计数据元素
+        const totalVisitsEl = document.getElementById('totalVisits');
+        const monthVisitsEl = document.getElementById('monthVisits');
+        const weekVisitsEl = document.getElementById('weekVisits');
+        const uniqueDevicesEl = document.getElementById('uniqueDevices');
+        const totalChangeEl = document.getElementById('totalChange');
+        const monthChangeEl = document.getElementById('monthChange');
+        const weekChangeEl = document.getElementById('weekChange');
+        const devicesChangeEl = document.getElementById('devicesChange');
+        const devicesTableBody = document.getElementById('devicesTableBody');
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 显示当前日期
+            currentDateEl.textContent = new Date().toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            
+            // 初始化设备ID
+            initDeviceId();
+            
+            // 绑定事件
+            retryBtn.addEventListener('click', loadStatistics);
+            
+            // 加载统计数据
+            await loadStatistics();
+        });
+        
+        // 初始化设备ID
+        function initDeviceId() {
+            // 尝试从localStorage获取设备ID
+            deviceId = localStorage.getItem('site_visitor_device_id');
+            
+            // 如果没有设备ID，则生成一个新的
+            if (!deviceId) {
+                // 基于时间戳和随机数生成唯一ID
+                deviceId = 'dev_' + Date.now() + '_' + Math.floor(Math.random() * 1000000);
+                localStorage.setItem('site_visitor_device_id', deviceId);
+            }
+        }
+        
+        // 获取设备信息
+        function getDeviceInfo() {
+            const parser = new UAParser();
+            const result = parser.getResult();
+            
+            return {
+                type: result.device.type || 'desktop', // 设备类型：mobile, tablet, desktop等
+                model: result.device.model || 'Unknown', // 设备型号
+                brand: result.device.vendor || 'Unknown', // 设备品牌
+                os: result.os.name || 'Unknown', // 操作系统
+                osVersion: result.os.version || 'Unknown', // 操作系统版本
+                browser: result.browser.name || 'Unknown', // 浏览器
+                browserVersion: result.browser.version || 'Unknown' // 浏览器版本
+            };
+        }
+        
+        // 记录访问
+        async function recordVisit() {
+            try {
+                const deviceInfo = getDeviceInfo();
+                const now = new Date();
+                
+                // 检查设备是否已存在
+                const { data: existingDevice } = await supabase
+                    .from('visitors')
+                    .select('id')
+                    .eq('device_id', deviceId)
+                    .single();
+                
+                if (existingDevice) {
+                    // 设备已存在，更新最后访问时间
+                    await supabase
+                        .from('visitors')
+                        .update({
+                            last_visit: now,
+                            visit_count: supabase.raw('visit_count + 1')
+                        })
+                        .eq('device_id', deviceId);
+                } else {
+                    // 设备不存在，创建新记录
+                    await supabase
+                        .from('visitors')
+                        .insert({
+                            device_id: deviceId,
+                            first_visit: now,
+                            last_visit: now,
+                            visit_count: 1,
+                            device_type: deviceInfo.type,
+                            device_model: deviceInfo.model,
+                            device_brand: deviceInfo.brand,
+                            os: deviceInfo.os,
+                            browser: deviceInfo.browser
+                        });
+                }
+                
+                // 记录每次访问详情
+                await supabase
+                    .from('visits')
+                    .insert({
+                        device_id: deviceId,
+                        visit_time: now,
+                        page: 'index', // 记录是index页面的访问
+                        device_type: deviceInfo.type,
+                        os: deviceInfo.os,
+                        browser: deviceInfo.browser
+                    });
+                
+                console.log('访问记录成功');
+            } catch (error) {
+                console.error('记录访问失败:', error);
+            }
+        }
+        
+        // 加载统计数据
+        async function loadStatistics() {
+            try {
+                // 显示加载状态
+                loadingState.classList.remove('hidden');
+                errorState.classList.add('hidden');
+                statsContent.classList.add('hidden');
+                
+                // 首先记录当前访问
+                await recordVisit();
+                
+                // 获取日期范围
+                const today = new Date();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                
+                const weekAgo = new Date();
+                weekAgo.setDate(today.getDate() - 7);
+                
+                const monthAgo = new Date();
+                monthAgo.setMonth(today.getMonth() - 1);
+                
+                const yesterday = new Date();
+                yesterday.setDate(today.getDate() - 1);
+                
+                // 获取总访问次数
+                const { data: totalVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true });
+                const totalVisits = totalVisitsData.count || 0;
+                
+                // 获取昨日访问次数
+                const { data: yesterdayVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', new Date(yesterday.setHours(0, 0, 0, 0)))
+                    .lt('visit_time', new Date(today.setHours(0, 0, 0, 0)));
+                const yesterdayVisits = yesterdayVisitsData.count || 0;
+                
+                // 获取今日访问次数
+                today.setHours(0, 0, 0, 0);
+                const { data: todayVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', today);
+                const todayVisits = todayVisitsData.count || 0;
+                
+                // 计算总访问变化率
+                const totalChangeRate = calculateChangeRate(yesterdayVisits, todayVisits);
+                
+                // 获取本月访问次数
+                const firstDayOfMonth = new Date();
+                firstDayOfMonth.setDate(1);
+                firstDayOfMonth.setHours(0, 0, 0, 0);
+                
+                const { data: monthVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', firstDayOfMonth);
+                const monthVisits = monthVisitsData.count || 0;
+                
+                // 获取上月访问次数
+                const lastMonthFirstDay = new Date();
+                lastMonthFirstDay.setMonth(lastMonthFirstDay.getMonth() - 1);
+                lastMonthFirstDay.setDate(1);
+                lastMonthFirstDay.setHours(0, 0, 0, 0);
+                
+                const { data: lastMonthVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', lastMonthFirstDay)
+                    .lt('visit_time', firstDayOfMonth);
+                const lastMonthVisits = lastMonthFirstDay.getMonth() === firstDayOfMonth.getMonth() - 1 
+                    ? lastMonthVisitsData.count || 0 
+                    : 0;
+                
+                // 计算月访问变化率
+                const monthChangeRate = calculateChangeRate(lastMonthVisits, monthVisits);
+                
+                // 获取本周访问次数
+                const firstDayOfWeek = new Date();
+                firstDayOfWeek.setDate(today.getDate() - today.getDay());
+                firstDayOfWeek.setHours(0, 0, 0, 0);
+                
+                const { data: weekVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', firstDayOfWeek);
+                const weekVisits = weekVisitsData.count || 0;
+                
+                // 获取上周访问次数
+                const lastWeekFirstDay = new Date(firstDayOfWeek);
+                lastWeekFirstDay.setDate(firstDayOfWeek.getDate() - 7);
+                
+                const { data: lastWeekVisitsData } = await supabase
+                    .from('visits')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('visit_time', lastWeekFirstDay)
+                    .lt('visit_time', firstDayOfWeek);
+                const lastWeekVisits = lastWeekVisitsData.count || 0;
+                
+                // 计算周访问变化率
+                const weekChangeRate = calculateChangeRate(lastWeekVisits, weekVisits);
+                
+                // 获取独立设备数
+                const { data: uniqueDevicesData } = await supabase
+                    .from('visitors')
+                    .select('count', { count: 'exact', head: true });
+                const uniqueDevices = uniqueDevicesData.count || 0;
+                
+                // 获取昨日新增设备数
+                yesterday.setHours(0, 0, 0, 0);
+                const { data: yesterdayDevicesData } = await supabase
+                    .from('visitors')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('first_visit', yesterday)
+                    .lt('first_visit', today);
+                const yesterdayDevices = yesterdayDevicesData.count || 0;
+                
+                // 获取今日新增设备数
+                const { data: todayDevicesData } = await supabase
+                    .from('visitors')
+                    .select('count', { count: 'exact', head: true })
+                    .gte('first_visit', today);
+                const todayDevices = todayDevicesData.count || 0;
+                
+                // 计算设备变化率
+                const devicesChangeRate = calculateChangeRate(yesterdayDevices, todayDevices);
+                
+                // 获取设备类型分布
+                const { data: deviceTypesData } = await supabase
+                    .from('visitors')
+                    .select('device_type, count(device_type) as count', { count: 'exact' })
+                    .group('device_type');
+                
+                // 获取最近30天的每日访问数据
+                const { data: dailyVisitsData } = await supabase
+                    .rpc('get_daily_visits', { start_date: thirtyDaysAgo, end_date: new Date() });
+                
+                // 更新UI显示统计数据
+                updateStatsUI({
+                    totalVisits,
+                    totalChangeRate,
+                    monthVisits,
+                    monthChangeRate,
+                    weekVisits,
+                    weekChangeRate,
+                    uniqueDevices,
+                    devicesChangeRate,
+                    deviceTypesData,
+                    dailyVisitsData
+                });
+                
+                // 显示统计内容
+                loadingState.classList.add('hidden');
+                statsContent.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+                
+                // 显示错误状态
+                loadingState.classList.add('hidden');
+                errorState.classList.remove('hidden');
+                errorMessageEl.textContent = error.message || '无法加载统计数据，请稍后重试';
+            }
+        }
+        
+        // 计算变化率
+        function calculateChangeRate(previous, current) {
+            if (previous === 0) {
+                return current > 0 ? 100 : 0;
+            }
+            return ((current - previous) / previous) * 100;
+        }
+        
+        // 格式化变化率显示
+        function formatChangeRate(rate) {
+            const absRate = Math.abs(Math.round(rate));
+            if (rate > 0) {
+                return `<i class="fa fa-arrow-up"></i> 较上期 +${absRate}%`;
+            } else if (rate < 0) {
+                return `<i class="fa fa-arrow-down"></i> 较上期 -${absRate}%`;
+            } else {
+                return `<i class="fa fa-minus"></i> 与上期持平`;
+            }
+        }
+        
+        // 更新统计UI
+        function updateStatsUI(data) {
+            // 更新统计数值
+            totalVisitsEl.textContent = data.totalVisits.toLocaleString();
+            monthVisitsEl.textContent = data.monthVisits.toLocaleString();
+            weekVisitsEl.textContent = data.weekVisits.toLocaleString();
+            uniqueDevicesEl.textContent = data.uniqueDevices.toLocaleString();
+            
+            // 更新变化率
+            totalChangeEl.innerHTML = formatChangeRate(data.totalChangeRate);
+            monthChangeEl.innerHTML = formatChangeRate(data.monthChangeRate);
+            weekChangeEl.innerHTML = formatChangeRate(data.weekChangeRate);
+            devicesChangeEl.innerHTML = formatChangeRate(data.devicesChangeRate);
+            
+            // 设置变化率样式
+            setChangeRateStyle(totalChangeEl, data.totalChangeRate);
+            setChangeRateStyle(monthChangeEl, data.monthChangeRate);
+            setChangeRateStyle(weekChangeEl, data.weekChangeRate);
+            setChangeRateStyle(devicesChangeEl, data.devicesChangeRate);
+            
+            // 创建每日访问趋势图表
+            createDailyTrendChart(data.dailyVisitsData);
+            
+            // 创建设备类型分布图表
+            createDeviceTypeChart(data.deviceTypesData);
+            
+            // 更新设备表格
+            updateDevicesTable(data.deviceTypesData, data.uniqueDevices);
+        }
+        
+        // 设置变化率样式
+        function setChangeRateStyle(element, rate) {
+            element.className = 'stat-change';
+            if (rate > 0) {
+                element.classList.add('increase');
+            } else if (rate < 0) {
+                element.classList.add('decrease');
+            }
+        }
+        
+        // 创建每日访问趋势图表
+        function createDailyTrendChart(dailyData) {
+            const ctx = document.getElementById('dailyTrendChart').getContext('2d');
+            
+            // 准备数据
+            const labels = dailyData.map(item => {
+                const date = new Date(item.date);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            });
+            
+            const visitsData = dailyData.map(item => item.visit_count);
+            
+            // 如果图表已存在，销毁它
+            if (dailyTrendChart) {
+                dailyTrendChart.destroy();
+            }
+            
+            // 创建新图表
+            dailyTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '访问次数',
+                        data: visitsData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                            padding: 10,
+                            titleFont: {
+                                size: 13
+                            },
+                            bodyFont: {
+                                size: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxRotation: 0,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(226, 232, 240, 0.5)'
+                            },
+                            ticks: {
+                                precision: 0,
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+        
+        // 创建设备类型分布图表
+        function createDeviceTypeChart(deviceData) {
+            const ctx = document.getElementById('deviceTypeChart').getContext('2d');
+            
+            // 准备数据
+            const labels = deviceData.map(item => {
+                switch (item.device_type) {
+                    case 'mobile': return '移动设备';
+                    case 'tablet': return '平板设备';
+                    case 'desktop': return '桌面设备';
+                    default: return item.device_type || '其他设备';
+                }
+            });
+            
+            const data = deviceData.map(item => item.count);
+            
+            const colors = [
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(245, 158, 11, 0.7)',
+                'rgba(139, 92, 246, 0.7)'
+            ];
+            
+            // 如果图表已存在，销毁它
+            if (deviceTypeChart) {
+                deviceTypeChart.destroy();
+            }
+            
+            // 创建新图表
+            deviceTypeChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: 'white',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%',
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+        
+        // 更新设备表格
+        function updateDevicesTable(deviceData, totalDevices) {
+            devicesTableBody.innerHTML = '';
+            
+            // 按数量排序
+            const sortedData = [...deviceData].sort((a, b) => b.count - a.count);
+            
+            sortedData.forEach((item, index) => {
+                const row = document.createElement('tr');
+                const percentage = totalDevices > 0 ? (item.count / totalDevices) * 100 : 0;
+                
+                let deviceTypeText, deviceIcon;
+                switch (item.device_type) {
+                    case 'mobile':
+                        deviceTypeText = '移动设备';
+                        deviceIcon = '<i class="fa fa-mobile"></i>';
+                        break;
+                    case 'tablet':
+                        deviceTypeText = '平板设备';
+                        deviceIcon = '<i class="fa fa-tablet"></i>';
+                        break;
+                    case 'desktop':
+                        deviceTypeText = '桌面设备';
+                        deviceIcon = '<i class="fa fa-desktop"></i>';
+                        break;
+                    default:
+                        deviceTypeText = item.device_type || '其他设备';
+                        deviceIcon = '<i class="fa fa-question-circle"></i>';
+                }
+                
+                row.innerHTML = `
+                    <td>
+                        <div class="device-icon">
+                            ${deviceIcon}
+                            ${deviceTypeText}
+                        </div>
+                    </td>
+                    <td>${item.count.toLocaleString()}</td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="progress-bar" style="flex: 1;">
+                                <div class="progress" style="width: ${percentage}%; background-color: ${getColorByIndex(index)}"></div>
+                            </div>
+                            <span style="font-weight: 500; min-width: 40px;">${Math.round(percentage)}%</span>
+                        </div>
+                    </td>
+                `;
+                
+                devicesTableBody.appendChild(row);
+            });
+        }
+        
+        // 根据索引获取颜色
+        function getColorByIndex(index) {
+            const colors = [
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(245, 158, 11, 0.7)',
+                'rgba(139, 92, 246, 0.7)'
+            ];
+            return colors[index % colors.length];
+        }
+    </script>
+</body>
+</html>
