@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面访问统计</title>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase配置
+        const SUPABASE_URL = "https://pbnbtuclityndulfsjhe.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBibmJ0dWNsaXR5bmR1bGZzamhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NjMwMTQsImV4cCI6MjA3MDMzOTAxNH0.EC6GFdIPaHdZQEflpQrHLP7vg39BsUYa4z8UAO21EKI";
+        
+        // 初始化Supabase客户端
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 2rem 4rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+        }
+        
+        .counter {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #3498db;
+            margin: 2rem 0;
+            min-width: 200px;
+        }
+        
+        .status {
+            margin: 1rem 0;
+            padding: 0.75rem 1rem;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        .success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        
+        .loading {
+            margin: 1rem 0;
+            color: #7f8c8d;
+        }
+        
+        .loading i {
+            animation: spin 1.5s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            margin-top: 2rem;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Index页面访问次数</h1>
+        
+        <div class="loading" id="loading">
+            <i class="fa fa-circle-o-notch fa-spin"></i> 加载中...
+        </div>
+        
+        <div class="counter" id="visitCounter">0</div>
+        
+        <div class="status success" id="successMsg" style="display: none;">
+            <i class="fa fa-check"></i> 访问已记录
+        </div>
+        
+        <div class="status error" id="errorMsg" style="display: none;">
+            <i class="fa fa-exclamation"></i> 记录失败，请稍后重试
+        </div>
+        
+        <div class="footer">
+            最后更新: <span id="lastUpdate">--</span>
+        </div>
+    </div>
+
+    <script>
+        // DOM元素
+        const loadingEl = document.getElementById('loading');
+        const counterEl = document.getElementById('visitCounter');
+        const successMsgEl = document.getElementById('successMsg');
+        const errorMsgEl = document.getElementById('errorMsg');
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // 首先尝试更新计数器（记录当前访问）
+                await updateCounter();
+                
+                // 然后获取最新的计数
+                const count = await getCurrentCount();
+                
+                // 更新显示
+                counterEl.textContent = count.toLocaleString();
+                loadingEl.style.display = 'none';
+                successMsgEl.style.display = 'block';
+                
+                // 更新最后更新时间
+                lastUpdateEl.textContent = new Date().toLocaleString();
+                
+            } catch (error) {
+                console.error('统计出错:', error);
+                loadingEl.style.display = 'none';
+                errorMsgEl.style.display = 'block';
+            }
+        });
+        
+        // 更新计数器（增加1）
+        async function updateCounter() {
+            try {
+                // 检查计数器记录是否存在
+                const { data: existingCounter } = await supabase
+                    .from('index_counter')
+                    .select('count')
+                    .eq('id', 1)
+                    .single();
+                
+                if (existingCounter) {
+                    // 如果存在，增加1
+                    await supabase
+                        .from('index_counter')
+                        .update({ count: existingCounter.count + 1 })
+                        .eq('id', 1);
+                } else {
+                    // 如果不存在，创建新记录，初始值为1
+                    await supabase
+                        .from('index_counter')
+                        .insert([{ id: 1, count: 1 }]);
+                }
+            } catch (error) {
+                console.error('更新计数器失败:', error);
+                throw new Error('无法更新访问计数');
+            }
+        }
+        
+        // 获取当前计数
+        async function getCurrentCount() {
+            try {
+                const { data } = await supabase
+                    .from('index_counter')
+                    .select('count')
+                    .eq('id', 1)
+                    .single();
+                
+                return data ? data.count : 0;
+            } catch (error) {
+                console.error('获取计数失败:', error);
+                throw new Error('无法获取当前访问次数');
+            }
+        }
+    </script>
+</body>
+</html>
