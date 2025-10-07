@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>龙湖时代天街招聘信息</title>
+    <title>成都龙湖时代天街招聘信息</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <link rel="preload" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/fonts/fontawesome-webfont.woff2?v=4.7.0" as="font" type="font/woff2" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
@@ -103,6 +103,63 @@
             white-space: nowrap;
         }
         
+        /* 标签选择区域 */
+        .tags-section {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            box-shadow: 0 2px 8px rgba(30, 58, 138, 0.1);
+        }
+        .tags-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: #2d3748;
+        }
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+        .tag {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            background-color: #edf2f7;
+            color: #2563eb;
+            border: 1px solid #93c5fd;
+        }
+        .tag.all {
+            background-color: inherit;
+            color: inherit;
+            border-color: #93c5fd;
+            font-weight: bold;
+        }
+        .tag:not(.all):hover {
+            background-color: #dbeafe;
+            transform: translateY(-2px);
+        }
+        .tag.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .tag .count {
+            margin-left: 0.5rem;
+            background-color: rgba(0,0,0,0.1);
+            padding: 0 0.4rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+        }
+        .tag.all .count {
+            background-color: rgba(0,0,0,0.1);
+        }
+        
         /* 加载和维护状态 */
         .status-view { 
             text-align: center; 
@@ -147,6 +204,9 @@
             box-shadow: 0 3px 12px rgba(30, 58, 138, 0.08); 
             transition: transform 0.3s, box-shadow 0.3s; 
             border: 1px solid rgba(30, 58, 138, 0.05);
+        }
+        .job-card.highlighted {
+            border: 2px solid #2563eb;
         }
         .job-card:hover { 
             transform: translateY(-3px); 
@@ -223,7 +283,8 @@
             color: #4a5568;
         }
         .requirements li { 
-            margin-bottom: 0.3rem; 
+            margin-bottom: 0.5rem; 
+            line-height: 1.5;
         }
         
         /* 加载更多指示器 */
@@ -386,14 +447,43 @@
                 font-size: 0.85rem;
             }
         }
+        
+        /* 回到顶部按钮样式 */
+        .back-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 1rem;
+            background-color: #2563eb;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(30, 58, 138, 0.3);
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+        .back-to-top.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .back-to-top:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-3px);
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container">
             <div class="header-content">
-                <h1 id="siteTitle" class="site-title">龙湖时代天街招聘信息</h1>
-                <a href="https://f.wps.cn/g/UFu2xQqc/" class="recruit-btn" target="_blank">我是品牌方 我要招聘</a>
+                <h1 id="siteTitle" class="site-title">成都龙湖时代天街招聘信息</h1>
+                <a href="https://f.wps.cn/g/UFu2xQqc/" class="recruit-btn" target="_blank">我是品牌方 发布招聘</a>
                 <p id="disclaimer" class="site-subtitle">信息仅供参考，以实际招聘为准</p>
             </div>
         </div>
@@ -431,9 +521,17 @@
             <div class="update-time" id="lastUpdate">最后更新：暂无数据</div>
         </div>
         
+        <!-- 标签选择区域 -->
+        <div class="tags-section" id="tagsSection">
+            <div class="tags-title">岗位类型</div>
+            <div class="tags-container" id="tagsContainer">
+                <!-- 标签将通过JavaScript动态生成 -->
+            </div>
+        </div>
+        
         <div class="content-area">
             <!-- 加载中状态 -->
-            <div id="loadingView" class="status-view loading hidden">
+            <div id="loadingView" class="status-view loading">
                 <i class="fa fa-spinner"></i>
                 <h2>招聘信息加载中</h2>
                 <p>请稍候...</p>
@@ -462,6 +560,10 @@
             </div>
         </div>
     </main>
+    
+    <div class="back-to-top" id="backToTop">
+        <i class="fa fa-arrow-up"></i>
+    </div>
 
     <script>
         // 确保XLSX库已加载
@@ -478,11 +580,18 @@
         // Supabase配置
         const SUPABASE_URL = "https://pbnbtuclityndulfsjhe.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBibmJ0dWNsaXR5bmR1bGZzamhlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ3NjMwMTQsImV4cCI6MjA3MDMzOTAxNH0.EC6GFdIPaHdZQEflpQrHLP7vg39BsUYa4z8UAO21EKI";
-        const ADMIN_PASSWORD = "admin123";
+        const ADMIN_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
         
         // 初始化Supabase
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        
+        // 添加SHA-256哈希计算函数
+async function sha256(str) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
         // 全局变量
         let clickCount = 0;
         let clickTimer = null;
@@ -490,6 +599,9 @@
         const BATCH_SIZE = 8; // 每次加载的数量
         let allJobs = [];
         let validJobs = []; // 存储有效（未过期）的招聘信息
+        let filteredJobs = []; // 存储过滤后的招聘信息
+        let tagsData = {}; // 存储标签数据
+        let activeTag = null; // 当前激活的标签
         let isLoading = false; // 防止重复加载
         
         // 统计index页面访问次数的函数
@@ -535,14 +647,19 @@
         const totalJobsEl = document.getElementById('totalJobs');
         const lastUpdateEl = document.getElementById('lastUpdate');
         const loadingMore = document.getElementById('loadingMore');
+        const tagsContainer = document.getElementById('tagsContainer');
+        const tagsSection = document.getElementById('tagsSection');
         
-        // 页面加载初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            bindEvents();
-            initMetadata();
-            loadData();
-            updateIndexCounter();
-        });
+        // 立即执行关键初始化，不等待DOMContentLoaded
+bindEvents();
+initMetadata();
+loadData();
+updateIndexCounter();
+
+// 保留DOMContentLoaded事件用于非关键操作
+document.addEventListener('DOMContentLoaded', () => {
+    // 这里可以放其他非关键的初始化代码
+});
         
         // 初始化metadata表
         async function initMetadata() {
@@ -585,16 +702,28 @@
                 }
             });
             
-            // 密码验证
-            verifyBtn.addEventListener('click', () => {
-                if (adminPassword.value === ADMIN_PASSWORD) {
-                    passwordSection.classList.add('hidden');
-                    uploadSection.classList.remove('hidden');
-                    adminPassword.value = '';
-                } else {
-                    showStatus('密码错误，请重新输入', 'error');
-                }
-            });
+            // 密码验证（哈希值匹配）
+verifyBtn.addEventListener('click', async () => {
+    const inputPassword = adminPassword.value;
+    if (!inputPassword) {
+        showStatus('请输入密码', 'error');
+        return;
+    }
+    
+    try {
+        const inputHash = await sha256(inputPassword);
+        if (inputHash === ADMIN_HASH) {
+            passwordSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+            adminPassword.value = '';
+        } else {
+            showStatus('密码错误，请重新输入', 'error');
+        }
+    } catch (error) {
+        console.error('哈希计算失败:', error);
+        showStatus('验证过程出错', 'error');
+    }
+});
             
             // 关闭弹窗
             closeBtn.addEventListener('click', () => {
@@ -615,11 +744,31 @@
             
             // 滚动加载更多
             window.addEventListener('scroll', handleScroll);
+
+            // 回到顶部按钮事件
+            const backToTopBtn = document.getElementById('backToTop');
+            
+            // 点击回到顶部
+            backToTopBtn.addEventListener('click', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // 滚动时显示/隐藏回到顶部按钮
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+            });
         }
         
         // 处理滚动事件，实现无限滚动
         function handleScroll() {
-            if (displayedCount >= validJobs.length || isLoading) {
+            if (displayedCount >= filteredJobs.length || isLoading) {
                 return;
             }
             
@@ -740,59 +889,139 @@
             return expiryDate < today;
         }
         
-        // 加载并过滤数据
-        async function loadData() {
-            showLoadingState(true);
+        // 提取并生成标签数据
+        function generateTagsData() {
+            const tags = {};
             
-            try {
-                const { data: jobs, error: jobsError } = await supabase
-                    .from('jobs')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (jobsError) {
-                    console.error('加载招聘信息失败:', jobsError);
-                    allJobs = [];
+            // 统计每个岗位类型的数量
+            validJobs.forEach(job => {
+                // 使用岗位作为标签
+                const tag = job.position || '未知岗位';
+                if (tags[tag]) {
+                    tags[tag]++;
                 } else {
-                    allJobs = jobs || [];
+                    tags[tag] = 1;
                 }
-                
-                validJobs = allJobs.filter(job => {
-                    const dateInfo = parseAndFormatDate(job.expiry_date);
-                    return !dateInfo.date || !isDateExpired(dateInfo.date);
-                });
-                
-                const { data: metadata, error: metaError } = await supabase
-                    .from('metadata')
-                    .select('last_update')
-                    .eq('id', 1)
-                    .single();
-                
-                if (metaError) {
-                    console.error('加载元数据失败:', metaError);
-                } else if (metadata?.last_update) {
-                    lastUpdateEl.textContent = `最后更新：${metadata.last_update}`;
-                }
-                
+            });
+            
+            return tags;
+        }
+        
+        // 渲染标签
+        function renderTags() {
+            tagsContainer.innerHTML = '';
+            
+            // 添加"全部岗位"标签
+            const allTag = document.createElement('div');
+            allTag.className = `tag all ${activeTag === null ? 'active' : ''}`;
+            allTag.innerHTML = `全部岗位 <span class="count">${validJobs.length}</span>`;
+            allTag.addEventListener('click', () => {
+                activeTag = null;
+                updateFilteredJobs();
+                renderTags();
                 updateDisplay();
-            } catch (error) {
-                console.error('数据加载失败:', error);
-                showMaintenanceState();
-            } finally {
-                showLoadingState(false);
+            });
+            tagsContainer.appendChild(allTag);
+            
+            // 将标签转换为数组并按数量排序
+            const sortedTags = Object.entries(tagsData)
+                .sort((a, b) => b[1] - a[1]); // 按数量从多到少排序
+            
+            // 添加其他标签
+            sortedTags.forEach(([tagName, count]) => {
+                const tagEl = document.createElement('div');
+                tagEl.className = `tag ${activeTag === tagName ? 'active' : ''}`;
+                tagEl.innerHTML = `${tagName} <span class="count">${count}</span>`;
+                tagEl.addEventListener('click', () => {
+                    activeTag = tagName;
+                    updateFilteredJobs();
+                    renderTags();
+                    updateDisplay();
+                });
+                tagsContainer.appendChild(tagEl);
+            });
+        }
+        
+        // 更新过滤后的岗位列表
+        function updateFilteredJobs() {
+            if (activeTag === null) {
+                // 显示全部岗位
+                filteredJobs = [...validJobs];
+            } else {
+                // 只显示选中标签的岗位
+                filteredJobs = validJobs.filter(job => job.position === activeTag);
             }
         }
         
+async function loadData() {
+    showLoadingState(true);
+    
+    try {
+        // 关键修改1：计算当前日期（用于服务端过滤）
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // 清零时间部分，确保按日期比较
+        const todayStr = today.toISOString().split('T')[0]; // 格式化为 YYYY-MM-DD
+        
+        // 关键修改2：服务端查询时直接过滤过期数据
+        const { data: jobs, error: jobsError } = await supabase
+            .from('jobs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            // 核心过滤条件：保留“长期有效（expiry_date为空）”或“未过期（expiry_date > 今天）”的数据
+            .or(`expiry_date.is.null,expiry_date.gt.${todayStr}`);
+        
+        if (jobsError) {
+            console.error('加载招聘信息失败:', jobsError);
+            allJobs = [];
+        } else {
+            allJobs = jobs || [];
+        }
+        
+        // 关键修改3：前端无需再过滤（服务端已处理），直接赋值
+        validJobs = allJobs;
+        
+        // 生成标签数据
+        tagsData = generateTagsData();
+        // 初始化过滤后的岗位列表
+        updateFilteredJobs();
+        
+        const { data: metadata, error: metaError } = await supabase
+            .from('metadata')
+            .select('last_update')
+            .eq('id', 1)
+            .single();
+        
+        if (metaError) {
+            console.error('加载元数据失败:', metaError);
+        } else if (metadata?.last_update) {
+            lastUpdateEl.textContent = `最后更新：${metadata.last_update}`;
+        }
+        
+        // 渲染标签
+        renderTags();
+        
+        updateDisplay();
+    } catch (error) {
+        console.error('数据加载失败:', error);
+        showMaintenanceState();
+    } finally {
+        showLoadingState(false);
+    }
+}
         // 更新显示
         function updateDisplay() {
             totalJobsEl.textContent = validJobs.length;
+            loadingMore.classList.add('hidden');
             
             if (allJobs.length === 0) {
                 showMaintenanceState();
+                tagsSection.classList.add('hidden');
             } else if (validJobs.length === 0) {
                 showNoValidJobsState();
+                tagsSection.classList.add('hidden');
             } else {
                 showJobsState();
+                tagsSection.classList.remove('hidden');
                 displayedCount = 0;
                 jobList.innerHTML = '';
                 loadMore();
@@ -801,16 +1030,17 @@
         
         // 加载更多数据
         function loadMore() {
-            if (isLoading || displayedCount >= validJobs.length) return;
+            if (isLoading || displayedCount >= filteredJobs.length) return;
             
             isLoading = true;
             loadingMore.classList.remove('hidden');
             
-            const end = Math.min(displayedCount + BATCH_SIZE, validJobs.length);
-            const jobsToAdd = validJobs.slice(displayedCount, end);
+            const end = Math.min(displayedCount + BATCH_SIZE, filteredJobs.length);
+            const jobsToAdd = filteredJobs.slice(displayedCount, end);
             
             jobsToAdd.forEach(job => {
                 const dateInfo = parseAndFormatDate(job.expiry_date);
+                const isHighlighted = activeTag !== null && job.position === activeTag;
                 
                 const phoneNumber = job.contact_phone || '未知电话';
                 const phoneHtml = phoneNumber !== '未知电话' 
@@ -818,7 +1048,7 @@
                     : phoneNumber;
                 
                 const card = document.createElement('div');
-                card.className = 'job-card';
+                card.className = `job-card ${isHighlighted ? 'highlighted' : ''}`;
                 card.innerHTML = `
                     <div class="card-header">
                         <div class="brand-name">${job.brand || '未知品牌'}</div>
@@ -826,36 +1056,49 @@
                     </div>
                     <div class="card-body">
                         <div class="info-item">
-                            <i class="fa fa-money"></i>
-                            <span class="label">薪资范围：</span>
-                            <span class="value">${job.salary || '薪资面议'}</span>
+                            <i class="fa fa-map-marker"></i>
+                            <div class="label">工作地点：</div>
+                            <div class="value">${job.location || '未注明'}</div>
                         </div>
                         <div class="info-item">
-                            <i class="fa fa-map-marker"></i>
-                            <span class="label">工作地点：</span>
-                            <span class="value">${job.location || '未知地点'}</span>
+                            <i class="fa fa-money"></i>
+                            <div class="label">薪资待遇：</div>
+                            <div class="value">${job.salary || '未注明'}</div>
                         </div>
                         <div class="info-item">
                             <i class="fa fa-user"></i>
-                            <span class="label">联络对象：</span>
-                            <span class="value">${job.contact_person || '未知联络对象'}</span>
+                            <div class="label">联络对象：</div>
+                            <div class="value">${job.contact_person || '未注明'}</div>
                         </div>
                         <div class="info-item">
                             <i class="fa fa-phone"></i>
-                            <span class="label">联系电话：</span>
-                            <span class="value">${phoneHtml}</span>
+                            <div class="label">联系电话：</div>
+                            <div class="value">${phoneHtml}</div>
                         </div>
-                        <div class="info-item">
-                            <i class="fa fa-calendar"></i>
-                            <span class="label">有效期至：</span>
-                            <span class="value">${dateInfo.formatted}</span>
-                        </div>
+                       
+                        <!-- 恢复岗位职责显示 -->
+                        ${job.responsibilities ? `
+                            <div class="section-title">岗位职责</div>
+                            <ul class="requirements">
+                                ${job.responsibilities
+                                    .split(/[;；\n]/)  // 支持分号、中文分号和换行分割
+                                    .filter(item => item.trim() !== '')
+                                    .map(req => `<li>${req.trim()}</li>`)
+                                    .join('')}
+                            </ul>
+                        ` : ''}
                         
-                        <div class="section-title">岗位职责</div>
-                        <ul class="requirements">${formatList(job.responsibilities)}</ul>
-                        
-                        <div class="section-title">岗位要求</div>
-                        <ul class="requirements">${formatList(job.requirements)}</ul>
+                        <!-- 修复岗位要求换行问题 -->
+                        ${job.requirements ? `
+                            <div class="section-title">岗位要求</div>
+                            <ul class="requirements">
+                                ${job.requirements
+                                    .split(/[;；\n]/)  // 支持多种分隔符
+                                    .filter(item => item.trim() !== '')
+                                    .map(req => `<li>${req.trim()}</li>`)
+                                    .join('')}
+                            </ul>
+                        ` : ''}
                     </div>
                 `;
                 jobList.appendChild(card);
@@ -863,22 +1106,56 @@
             
             displayedCount = end;
             
-            if (displayedCount >= validJobs.length) {
+            isLoading = false;
+            if (displayedCount >= filteredJobs.length) {
                 loadingMore.classList.add('hidden');
             }
-            
-            isLoading = false;
         }
         
-        // 格式化列表
-        function formatList(text) {
-            return text ? text.split(/[；;]/)
-                .filter(item => item.trim())
-                .map(item => `<li>${item.trim()}</li>`)
-                .join('') : '<li>无相关信息</li>';
+        // 显示状态消息
+        function showStatus(message, type) {
+            uploadStatus.textContent = message;
+            uploadStatus.className = 'status-message';
+            uploadStatus.classList.add(`status-${type}`);
         }
         
-        // 处理文件上传
+        // 显示加载状态
+        function showLoadingState(show) {
+            if (show) {
+                loadingView.classList.remove('hidden');
+                maintenanceView.classList.add('hidden');
+                noValidJobsView.classList.add('hidden');
+                jobsView.classList.add('hidden');
+            } else {
+                loadingView.classList.add('hidden');
+            }
+        }
+        
+        // 显示维护状态
+        function showMaintenanceState() {
+            loadingView.classList.add('hidden');
+            maintenanceView.classList.remove('hidden');
+            noValidJobsView.classList.add('hidden');
+            jobsView.classList.add('hidden');
+        }
+        
+        // 显示无有效岗位状态
+        function showNoValidJobsState() {
+            loadingView.classList.add('hidden');
+            maintenanceView.classList.add('hidden');
+            noValidJobsView.classList.remove('hidden');
+            jobsView.classList.add('hidden');
+        }
+        
+        // 显示岗位列表状态
+        function showJobsState() {
+            loadingView.classList.add('hidden');
+            maintenanceView.classList.add('hidden');
+            noValidJobsView.classList.add('hidden');
+            jobsView.classList.remove('hidden');
+        }
+        
+              // 处理文件上传
         async function handleUpload(e) {
             if (typeof XLSX === 'undefined') {
                 showStatus('文件解析库未加载，请刷新页面重试', 'error');
@@ -1024,49 +1301,6 @@
                 reader.readAsArrayBuffer(file);
             });
         }
-        
-        // 显示状态信息
-        function showStatus(message, type) {
-            uploadStatus.textContent = message;
-            uploadStatus.className = `status-message status-${type}`;
-        }
-        
-        // 显示/隐藏加载状态
-        function showLoadingState(show) {
-            if (show) {
-                loadingView.classList.remove('hidden');
-                maintenanceView.classList.add('hidden');
-                noValidJobsView.classList.add('hidden');
-                jobsView.classList.add('hidden');
-            } else {
-                loadingView.classList.add('hidden');
-            }
-        }
-        
-        // 显示维护中状态
-        function showMaintenanceState() {
-            maintenanceView.classList.remove('hidden');
-            loadingView.classList.add('hidden');
-            noValidJobsView.classList.add('hidden');
-            jobsView.classList.add('hidden');
-        }
-        
-        // 显示无有效信息状态
-        function showNoValidJobsState() {
-            noValidJobsView.classList.remove('hidden');
-            loadingView.classList.add('hidden');
-            maintenanceView.classList.add('hidden');
-            jobsView.classList.add('hidden');
-        }
-        
-        // 显示招聘信息状态
-        function showJobsState() {
-            jobsView.classList.remove('hidden');
-            loadingView.classList.add('hidden');
-            maintenanceView.classList.add('hidden');
-            noValidJobsView.classList.add('hidden');
-        }
     </script>
 </body>
 </html>
-    
